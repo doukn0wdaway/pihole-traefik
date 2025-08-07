@@ -66,5 +66,4 @@ networks:
   pihole_macvlan:
     external: true
   traefik-net:
-    driver: bridge
-
+    external: true
