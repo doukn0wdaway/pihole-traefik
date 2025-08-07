@@ -28,10 +28,6 @@ services:
       - "traefik.http.routers.pihole.entrypoints=websecure"
       - "traefik.http.routers.pihole.tls=true"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
-      - "traefik.http.middlewares.redirect-root.redirectregex.regex=^/$"
-      - "traefik.http.middlewares.redirect-root.redirectregex.replacement=/admin"
-      - "traefik.http.middlewares.redirect-root.redirectregex.permanent=true"
-      - "traefik.http.routers.pihole.middlewares=redirect-root"
 
   traefik:
     image: traefik:latest
