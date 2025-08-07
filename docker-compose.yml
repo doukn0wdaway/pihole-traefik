@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  pihole:
+    image: pihole/pihole:2025.08.0
+    container_name: pihole
+    restart: unless-stopped
+    environment:
+      TZ: 'Europe/Kyiv'
+      FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
+      FTLCONF_dns_upstreams: 1.1.1.1;1.0.0.1;8.8.8.8
+      FTLCONF_dns_listeningMode: all
+      FTLCONF_dhcp_active: 'true'
+      FTLCONF_dhcp_start: '10.0.0.50'
+      FTLCONF_dhcp_end: '10.0.0.254'
+      FTLCONF_dhcp_router: '10.0.0.1'
+      FTLCONF_dhcp_netmask: '255.255.255.0'
+    volumes:
+      - ./etc-pihole:/etc/pihole
+      - ./etc-dnsmasq.d:/etc/dnsmasq.d
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      pihole_macvlan:
+        ipv4_address: 10.0.0.3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.local`)"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.tls=true"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=you@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    labels:
+      - "traefik.enable=true"
+      # HTTP-доступ
+      - "traefik.http.routers.traefik-http.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.traefik-http.entrypoints=web"
+      - "traefik.http.routers.traefik-http.service=api@internal"
+      # HTTPS-доступ
+      - "traefik.http.routers.traefik.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik.service=api@internal"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - traefik-net
+
+networks:
+  pihole_macvlan:
+    external: true
+  traefik-net:
+    driver: bridge
+
